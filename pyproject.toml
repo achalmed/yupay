@@ -1,0 +1,24 @@
+# pyproject.toml — el paquete de Python de Yupay (Rendición de cuentas): dependencias, extras y los datos de su marco
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yupay"
+version = "0.1.0"
+description = "Yupay: la rendición de cuentas de viáticos de la plataforma Qillqa (comprobantes, movilidad, topes, la liquidación en Excel y los anexos en PDF con su marco LaTeX), que funciona dentro de Qillqa o solo con el anfitrión mínimo de Tiqsi."
+readme = "README.md"
+license = "AGPL-3.0-only"
+requires-python = ">=3.11"
+dependencies = ["tiqsi", "fastapi>=0.110", "pydantic-settings>=2", "PyJWT>=2.8", "openpyxl>=3.1", "python-multipart>=0.0.9",
+                "sqlalchemy[asyncio]>=2", "asyncpg>=0.29"]
+
+[project.optional-dependencies]
+sola = ["uvicorn[standard]>=0.30"]
+pruebas = ["pytest>=8", "httpx>=0.27"]
+
+[tool.setuptools]
+packages = ["yupay", "yupay.marco"]
+
+[tool.setuptools.package-data]
+"yupay.marco" = ["fuentes/*", "latex/*", "latex/**/*"]

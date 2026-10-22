@@ -1,0 +1,238 @@
+%% =====================================================================
+%%  rendicion_marco/latex/yupay-rendicion.sty  --  Esqueleto de la
+%%  RENDICION DE VIATICOS (Anexos 3 y 4 de la directiva de pasajes,
+%%  anticipos y rendicion de cuenta; 2026-10-18). Viene de
+%%  marco_documental/structures/rendicion-viaticos/ (2026-10-20, fase
+%%  10.2b): Yupay lleva su propio marco; los cambios de forma van aqui.
+%% ---------------------------------------------------------------------
+%%  Da FORMATO a los dos formularios; los datos llegan por \setmeta en
+%%  metadata.tex y las filas por contenido.tex, ambos GENERADOS por el
+%%  Yupay (yupay/tex.py). El orden y el texto
+%%  siguen el formato de referencia (Word de la entidad, SR-01); el diseno
+%%  es el sobrio del marco: tablas con filete gris, cabeceras sobre papel.
+%%  Guardia anti doble carga; nombres SIN @ (se carga con @ no letra).
+%%
+%%  Partes:
+%%    \cabeceraanexo{ANEXO N.° 3}{FORMATO N.° 02-VN}{TITULO}
+%%    \textodeclaracion                 Yo, … declaro BAJO JURAMENTO…
+%%    \begin{tablamovilidad} \tramo{fecha}{hora}{del}{al}{monto}…
+%%        \totaltabla{4}{monto} \end{tablamovilidad}
+%%    \begin{tablaotros} \otrogasto{fecha}{concepto}{monto}…
+%%        \totaltabla{2}{monto} \end{tablaotros}
+%%    \cierredeclaracion{importe}{letras}  frase, lugar y fecha, firma
+%%    \datosrendicion                   cabecera del Formato 03-VN (cuadritos:
+%%                                      SIAF, comprobante de pago y solicitud
+%%                                      de efectivo con sus casillas de fecha)
+%%    \begin{seccionrendicion}{A.}{VIATICOS …}
+%%        \gasto{n}{documento}{fecha}{concepto}{importe}…
+%%        \sinGastos  \totalseccion{rotulo}{importe}
+%%    \end{seccionrendicion}
+%%    \firmarendicion                   fecha de rendicion, firma, cargo, DNI
+%% =====================================================================
+\ifcsname despachoEstructuraRendicion\endcsname
+  \expandafter\endinput
+\fi
+\expandafter\def\csname despachoEstructuraRendicion\endcsname{cargada}
+
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{hhline}% la raya bajo RUTA sobre el fondo de la cabecera (\cline la tapa el \rowcolor)
+% Columnas m{} (2026-10-18, Edison): el dato de cada celda va centrado en vertical, no arriba, para
+% que las filas de varias líneas (rutas largas) se vean ordenadas.
+\RequirePackage{colortbl}
+
+%% --- Textos de la institucion (publicos; sobrescribibles por \setmeta)
+\setmeta{directiva}{Directiva «Procedimientos para la adquisición de pasajes aéreos, el otorgamiento de anticipos para la comisión del servicio dentro del territorio nacional, y la rendición de cuenta»}
+\setmeta{pieformato}{Área de Procesos y Estándares / Normas Internas del Servicio Parlamentario}
+
+%% --- Cabecera y pie de pagina (los del formato, no los de la entidad) --
+\newcommand{\cabeceraformato}{%
+  \begin{minipage}[b]{\textwidth}\centering
+    {\fuentedatos\fontsize{7.5}{9}\selectfont\itshape\color{neutral700}\meta{directiva}\par}%
+    \vspace{2pt}{\color{neutral500}\rule{\textwidth}{0.4pt}}%
+  \end{minipage}}
+\newcommand{\pieformato}{%
+  \begin{minipage}[t]{\textwidth}%
+    {\color{neutral500}\rule{\textwidth}{0.4pt}}\\[2pt]
+    {\fuentedatos\fontsize{7.5}{9}\selectfont\color{neutral700}\itshape\meta{pieformato}\hfill
+      \upshape Página~\thepage~de~\pageref*{LastPage}}%
+  \end{minipage}}
+%%  La clase los pone en fancyhdr (\fancyhead / \fancyfoot): el pie
+%%  institucional de la entidad (core/config/membrete.tex) no se toca.
+
+%% --- Dato que puede faltar: si no esta, renglon para llenarlo a mano --
+\newcommand{\rvdato}[2][2.6cm]{\ifmetadef{#2}{\meta{#2}}{\underline{\hspace{#1}}}}
+%%  En mayúsculas: \MakeUppercase{\rvdato{…}} pondría en mayúsculas la CLAVE y
+%%  \meta no la hallaría; aquí se aplica solo al valor.
+\newcommand{\rvmayus}[2][2.6cm]{\ifmetadef{#2}{\MakeUppercase{\meta{#2}}}{\underline{\hspace{#1}}}}
+
+%% --- Titulo de un anexo -----------------------------------------------
+\newcommand{\cabeceraanexo}[3]{%
+  \begin{center}
+    {\fuentedisplaysemi\normalsize #1}\par\vspace{3pt}%
+    {\fuentedisplaysemi\normalsize #2}\par\vspace{7pt}%
+    {\fuentedisplaysemi\small\color{guindaoficial}\MakeUppercase{#3}}\par
+  \end{center}\vspace{2pt}}
+
+%% --- Anexo 3: texto de la declaracion ---------------------------------
+%%  La unidad («despacho del <cargo> <autor>») sale del perfil si Qillqa
+%%  no la manda: el titular nunca se escribe aqui.
+%%  Sin perfil (Yupay sola, sin despacho), un renglón para llenarla a mano.
+\newcommand{\unidaddeclarante}{\ifmetadef{unidad}{\meta{unidad}}{\ifmetadef{autor}{despacho del \meta{cargo} \meta{autor}}{\underline{\hspace{5cm}}}}}
+\newcommand{\textodeclaracion}{%
+  \noindent Yo, \textbf{\rvmayus[5cm]{comisionado}} con DNI:~\textbf{\rvdato{dnicomisionado}}
+  desempeñando el cargo de \textbf{\rvmayus[3cm]{cargocomisionado}} en el
+  \unidaddeclarante\textsuperscript{\,(1)}, declaro \textbf{BAJO JURAMENTO} haber utilizado el importe
+  asignado para ejecutar gastos de movilidad local, hospedaje y alimentación hasta el lugar de
+  embarque y otros, de acuerdo con el detalle siguiente:\par\vspace{4pt}}
+
+%% --- Tablas: filete gris, cabecera sobre papel, cifras a la derecha ---
+\newlength{\rvancho}
+\newcommand{\rvcab}[1]{{\fuentedatossemi\scriptsize #1}}
+%%  Cabecera centrada DENTRO de la celda p (no con \multicolumn{1}): longtable
+%%  mide el ancho de cada columna por sus celdas normales; una columna sin
+%%  ninguna (sección vacía) se encogía al ancho del rótulo (2026-10-18).
+\newcommand{\rvcabc}[1]{\centering\arraybackslash\rvcab{#1}}
+\newcommand{\rvsubtitulo}[1]{\par\vspace{5pt}\noindent{\fuentedisplaysemi\small\underline{#1}}\par\vspace{3pt}}
+
+\newenvironment{tablamovilidad}{%
+  \rvsubtitulo{MOVILIDAD:}%
+  \setlength{\rvancho}{\dimexpr(\textwidth-5.55cm-10\tabcolsep-6\arrayrulewidth)/2\relax}%
+  \fuentedatos\footnotesize\arrayrulecolor{neutral500}\renewcommand{\arraystretch}{1.18}%
+  \setlength{\LTpre}{0pt}\setlength{\LTpost}{2pt}%
+  \begin{longtable}{|>{\centering\arraybackslash}m{1.85cm}|>{\centering\arraybackslash}m{1.75cm}|>{\raggedright\arraybackslash}m{\rvancho}|>{\raggedright\arraybackslash}m{\rvancho}|>{\raggedleft\arraybackslash}m{1.95cm}|}
+  \hline
+  % FECHA, HORA y MONTO centrados en los dos pisos de la cabecera (2026-10-18): \multirow{-2} en el
+  % segundo renglón, para que el \rowcolor de ese renglón no tape el texto.
+  \rowcolor{papel} & & \multicolumn{2}{c|}{\rvcab{RUTA}} & \\\hhline{|>{\arrayrulecolor{papel}}->{\arrayrulecolor{papel}}->{\arrayrulecolor{neutral500}}-->{\arrayrulecolor{papel}}-|}\arrayrulecolor{neutral500}
+  \rowcolor{papel}\multirow{-2}{*}{\rvcab{FECHA}} & \multirow{-2}{*}{\rvcab{HORA}} & \rvcabc{DEL} & \rvcabc{AL} & \multicolumn{1}{c|}{\multirow{-2}{*}{\rvcab{MONTO}}}\\\hline
+  \endfirsthead
+  \hline
+  \rowcolor{papel}\rvcab{FECHA} & \rvcab{HORA} & \rvcabc{DEL} & \rvcabc{AL} & \rvcabc{MONTO}\\\hline
+  \endhead
+}{\end{longtable}\arrayrulecolor{black}}
+\newcommand{\tramo}[5]{#1 & #2 & #3 & #4 & #5\\\hline}
+
+\newenvironment{tablaotros}{%
+  \rvsubtitulo{OTROS:}%
+  \setlength{\rvancho}{\dimexpr\textwidth-3.8cm-6\tabcolsep-4\arrayrulewidth\relax}%
+  \fuentedatos\footnotesize\arrayrulecolor{neutral500}\renewcommand{\arraystretch}{1.18}%
+  \setlength{\LTpre}{0pt}\setlength{\LTpost}{2pt}%
+  \begin{longtable}{|>{\centering\arraybackslash}m{1.85cm}|>{\raggedright\arraybackslash}m{\rvancho}|>{\raggedleft\arraybackslash}m{1.95cm}|}
+  \hline
+  \rowcolor{papel}\rvcab{FECHA} & \rvcabc{CONCEPTO} & \rvcabc{MONTO}\\\hline
+  \endhead
+}{\end{longtable}\arrayrulecolor{black}}
+\newcommand{\otrogasto}[3]{#1 & #2 & #3\\\hline}
+%%  \totaltabla{columnas antes del monto}{monto}
+\newcommand{\totaltabla}[2]{\multicolumn{#1}{|r|}{\fuentedatossemi TOTAL} & {\fuentedatossemi #2}\\\hline}
+%%  fila vacia (seccion sin gastos): una celda que ocupa toda la tabla
+\newcommand{\filavacia}[1]{\multicolumn{#1}{|c|}{\color{neutral700}—}\\\hline}
+
+%% --- Anexo 3: cierre --------------------------------------------------
+%%  La frase, el lugar y la firma en UNA caja: la firma nunca pasa sola a otra hoja.
+\newcommand{\cierredeclaracion}[2]{%
+  \par\vspace{6pt}\noindent\begin{minipage}{\textwidth}
+  \setlength{\parskip}{4pt}%
+  Al no haber obtenido comprobante de pago que sustente este egreso, se expide la
+  presente Declaración Jurada por el importe total de \textbf{#1} (#2), en cumplimiento a las directivas
+  vigentes.\par\vspace{8pt}
+  \noindent\ifmetadef{lugarfirma}{\meta{lugarfirma}}{\rvdato[3cm]{lugar}}, \rvdato[4cm]{fechadeclaracion}.\par
+  \vspace{1.9cm}%
+  \begin{center}
+    \rule{6.2cm}{0.4pt}\\[2pt]
+    {\seriesemi\rvmayus[5cm]{comisionado}}\\
+    DNI:~\rvdato{dnicomisionado}
+  \end{center}
+  \end{minipage}\par
+  \vfill
+  \noindent{\fuentedatos\scriptsize\color{neutral700}(1)~Despacho congresal, comisión, unidad orgánica, etc.}\par}
+
+%% --- Anexo 4: cabecera ------------------------------------------------
+\newcommand{\rvcampo}[2]{\noindent{\fuentedatos\footnotesize #1}~{\seriesemi #2}\par\vspace{1.5pt}}
+%%  Los «cuadritos» del formato (2026-10-18, pedido de Edison: replicar los del
+%%  original): tras «SIAF:» una caja redondeada; luego dos marcos redondeados,
+%%  «COMPROBANTE DE PAGO N°:» y «SOLICITUD DINERO EFECTIVO N°», cada uno con
+%%  su recuadro para el número y «FECHA:» con tres casillas (día, mes, año).
+%%  El dato va DENTRO de su caja; sin dato, la caja queda vacía para llenarla
+%%  a mano (como el formato impreso). Medidas tomadas del PDF de la SR-01.
+\RequirePackage{tikz}
+%%  \rvvalor{clave}: el valor si existe; nada si no (la caja queda vacía).
+\newcommand{\rvvalor}[1]{\ifmetadef{#1}{\meta{#1}}{}}
+\newcommand{\rvcajadato}[3]{% {ancho}{alto}{contenido}
+  \tikz[baseline=(c.base)]\node[draw=neutral700, line width=0.5pt, rounded corners=2.2pt,
+    minimum width=#1, minimum height=#2, inner sep=1pt, text width=\dimexpr#1-6pt\relax, align=center,
+    font=\fuentedatos\footnotesize] (c) {\strut#3};}
+\newcommand{\rvcasillas}[1]{% {prefijo de la clave}: tres casillas día, mes, año
+  \rvcajadato{0.62cm}{0.52cm}{\rvvalor{#1dia}}\hspace{-0.5pt}%
+  \rvcajadato{0.62cm}{0.52cm}{\rvvalor{#1mes}}\hspace{-0.5pt}%
+  \rvcajadato{0.80cm}{0.52cm}{{\scriptsize\rvvalor{#1anio}}}}
+\newcommand{\rvmarcopago}[4]{% {ancho}{rótulo}{clave del número}{prefijo de la fecha}
+  \begin{tikzpicture}[baseline=(m.north)]
+    \node[draw=neutral700, line width=0.5pt, rounded corners=5pt, minimum width=#1, minimum height=1.32cm,
+      inner sep=0pt] (m) {};
+    \node[anchor=north west, inner sep=0pt, font=\fuentedatos\scriptsize] at ([xshift=4pt, yshift=-4pt]m.north west) {#2};
+    \node[anchor=north west, inner sep=0pt, font=\fuentedatos\scriptsize] at ([xshift=-6pt-2.04cm, yshift=-4pt]m.north east) {FECHA:};
+    \node[anchor=south west, inner sep=0pt] at ([xshift=6pt, yshift=5pt]m.south west)
+      {\rvcajadato{\dimexpr#1-3.15cm\relax}{0.52cm}{\rvvalor{#3}}};
+    \node[anchor=south east, inner sep=0pt] at ([xshift=-6pt, yshift=5pt]m.south east) {\rvcasillas{#4}};
+  \end{tikzpicture}}
+\newcommand{\datosrendicion}{%
+  \noindent{\fuentedatos\normalsize SIAF:}\hspace{1.05cm}\rvcajadato{3.0cm}{0.56cm}{\rvvalor{siaf}}\par\vspace{3pt}
+  \noindent\rvmarcopago{0.475\textwidth}{COMPROBANTE DE PAGO N°:}{comprobantepago}{comprobantepago}\hfill
+  \rvmarcopago{0.475\textwidth}{SOLICITUD DINERO EFECTIVO N°}{solicitudefectivo}{solicitudefectivo}\par\vspace{7pt}
+  \rvcampo{Solicitud de viáticos y/o documento que autoriza el viaje:}{\rvmayus[5cm]{documentoviaje}}
+  \rvcampo{Fecha:}{\rvdato{documentoviajefecha}}
+  \rvcampo{Nombres y apellidos del comisionado:}{\rvdato[5cm]{comisionado}}
+  \rvcampo{Unidad orgánica:}{\MakeUppercase{\unidaddeclarante}}
+  \rvcampo{Lugar:}{\rvmayus[4cm]{lugarcomision}\ \mdseries\rvdato[6cm]{periodo}.}
+  \rvcampo{Días de duración de la comisión:}{\rvdato{dias}}
+  \rvcampo{Motivo del viaje:}{\rvmayus[6cm]{motivo}}
+  \vspace{4pt}}
+
+%% --- Anexo 4: una seccion (A, B, C) -----------------------------------
+\newenvironment{seccionrendicion}[2]{%
+  \par\vspace{6pt}\noindent{\fuentedisplaysemi\small #1~~#2}\par\vspace{3pt}%
+  \setlength{\rvancho}{\dimexpr\textwidth-7.8cm-10\tabcolsep-6\arrayrulewidth\relax}%
+  \fuentedatos\footnotesize\arrayrulecolor{neutral500}\renewcommand{\arraystretch}{1.18}%
+  \setlength{\LTpre}{0pt}\setlength{\LTpost}{2pt}%
+  \begin{longtable}{|>{\centering\arraybackslash}m{0.75cm}|>{\raggedright\arraybackslash}m{\rvancho}|>{\centering\arraybackslash}m{1.85cm}|>{\centering\arraybackslash}m{2.95cm}|>{\raggedleft\arraybackslash}m{2.25cm}|}
+  \hline
+  \rowcolor{papel}\rvcab{N.°} & \rvcabc{DOCUMENTO} & \rvcab{FECHA} & \rvcab{CONCEPTO} & \rvcabc{IMPORTE S/}\\\hline
+  \endhead
+}{\end{longtable}\arrayrulecolor{black}}
+%%  La misma sección en tabla simple (no longtable), para la ÚLTIMA: va dentro de
+%%  \begin{bloquefinal} junto con \firmarendicion y así la firma nunca queda sola en
+%%  una hoja (regla de la entidad: firma nunca sola; 2026-10-18).
+\newenvironment{seccioncorta}[2]{%
+  \par\vspace{6pt}\noindent{\fuentedisplaysemi\small #1~~#2}\par\vspace{3pt}%
+  \setlength{\rvancho}{\dimexpr\textwidth-7.8cm-10\tabcolsep-6\arrayrulewidth\relax}%
+  \fuentedatos\footnotesize\arrayrulecolor{neutral500}\renewcommand{\arraystretch}{1.18}%
+  \noindent\begin{tabular}{|>{\centering\arraybackslash}m{0.75cm}|>{\raggedright\arraybackslash}m{\rvancho}|>{\centering\arraybackslash}m{1.85cm}|>{\centering\arraybackslash}m{2.95cm}|>{\raggedleft\arraybackslash}m{2.25cm}|}
+  \hline
+  \rowcolor{papel}\rvcabc{N.°} & \rvcabc{DOCUMENTO} & \rvcabc{FECHA} & \rvcabc{CONCEPTO} & \rvcabc{IMPORTE S/}\\\hline
+}{\end{tabular}\arrayrulecolor{black}\par}
+\newenvironment{bloquefinal}{\par\noindent\begin{minipage}{\textwidth}}{\end{minipage}\par}
+\newcommand{\gasto}[5]{#1 & #2 & #3 & #4 & #5\\\hline}
+\newcommand{\singastos}{\filavacia{5}}
+%%  \totalseccion{rotulo}{importe}: fila de totales a la derecha (rendido, recibido, saldo)
+\newcommand{\totalseccion}[2]{\multicolumn{3}{l|}{} & \multicolumn{1}{r|}{#1} & #2\\\cline{4-5}}
+\newcommand{\totalseccionfuerte}[2]{\multicolumn{3}{l|}{} & \multicolumn{1}{r|}{\fuentedatossemi #1} & {\fuentedatossemi #2}\\\cline{4-5}}
+
+%% --- Anexo 4: firma ---------------------------------------------------
+%%  Fecha y firma en UN bloque (minipages lado a lado): no se separan de hoja
+%%  y ocupan poco alto (la firma cae a la altura de la fecha).
+\newcommand{\firmarendicion}{%
+  \par\vspace{8pt}\noindent\begin{minipage}[b]{0.32\textwidth}
+    {\fuentedatos\footnotesize Fecha de rendición}\par
+    {\seriesemi\rvdato{fecharendicion}}
+  \end{minipage}\hfill
+  \begin{minipage}[b]{0.64\textwidth}
+    \vspace{1.4cm}%
+    {\renewcommand{\arraystretch}{1.5}%
+    \begin{tabular}{@{}l@{\ \ :\ \ }l@{}}
+      Firma del comisionado & \rule{5.6cm}{0.4pt}\\
+      Cargo & \rvmayus[4cm]{cargocomisionado}\\
+      DNI & \rvdato{dnicomisionado}\\
+    \end{tabular}}
+  \end{minipage}\par}
